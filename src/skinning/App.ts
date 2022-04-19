@@ -12,6 +12,7 @@ import {
   floorVSText,
   skeletonFSText,
   skeletonVSText,
+  highlightFSText,
   sBackVSText,
   sBackFSText
 } from "./Shaders.js";
@@ -34,8 +35,12 @@ export class SkinningAnimation extends CanvasAnimation {
   private scene: CLoader;
   private sceneRenderPass: RenderPass;
 
+  public num: number = 1.0;
+
   /* Skeleton rendering info */
   private skeletonRenderPass: RenderPass;
+  private kCylinderRadius: number;
+  private highlightRenderPass: RenderPass;
 
   /* Scrub bar background rendering info */
   private sBackRenderPass: RenderPass;
@@ -81,9 +86,14 @@ export class SkinningAnimation extends CanvasAnimation {
     
     // TODO
     // Other initialization, for instance, for the bone highlighting
+
+    this.highlightRenderPass = new RenderPass(this.extVAO, gl, skeletonVSText, highlightFSText);
+
+    //this.initCylinder();
     
+   
     this.initGui();
-  
+
     
 
     this.millis = new Date().getTime();
@@ -118,6 +128,7 @@ export class SkinningAnimation extends CanvasAnimation {
     if (this.scene.meshes.length === 0) { return; }
     this.initModel();
     this.initSkeleton();
+    this.initCylinder();
     this.gui.reset();
   }
 
@@ -193,6 +204,7 @@ export class SkinningAnimation extends CanvasAnimation {
    * Sets up the skeleton drawing
    */
   public initSkeleton(): void {
+    console.log("in bone");
     this.skeletonRenderPass.setIndexBufferData(this.scene.meshes[0].getBoneIndices());
 
     this.skeletonRenderPass.addAttribute("vertPosition", 3, this.ctx.FLOAT, false,
@@ -221,11 +233,55 @@ export class SkinningAnimation extends CanvasAnimation {
         gl.uniform4fv(loc, this.getScene().meshes[0].getBoneRotations());
     });
 
+    this.skeletonRenderPass.addUniform("highlighted", 
+    (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+      gl.uniform1f(loc, this.num);
+    });
+
     this.skeletonRenderPass.setDrawData(this.ctx.LINES,
       this.scene.meshes[0].getBoneIndices().length, this.ctx.UNSIGNED_INT, 0);
     this.skeletonRenderPass.setup();
   }
 
+
+  /*
+  * set up the Cylinder drawing
+  */
+ public initCylinder(): void {
+   console.log("in cylinder");
+  this.highlightRenderPass.setIndexBufferData(this.scene.meshes[0].getBoneIndices());
+  this.highlightRenderPass.addAttribute("vertPosition", 3, this.ctx.FLOAT, false,
+  3 * Float32Array.BYTES_PER_ELEMENT, 0, undefined, this.scene.meshes[0].getBonePositions());
+this.skeletonRenderPass.addAttribute("boneIndex", 1, this.ctx.FLOAT, false,
+  1 * Float32Array.BYTES_PER_ELEMENT, 0, undefined, this.scene.meshes[0].getBoneIndexAttribute());
+
+this.highlightRenderPass.addUniform("mWorld",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniformMatrix4fv(loc, false, new Float32Array(Mat4.identity.all()));
+});
+this.highlightRenderPass.addUniform("mProj",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().all()));
+});
+this.highlightRenderPass.addUniform("mView",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().all()));
+});
+this.highlightRenderPass.addUniform("bTrans",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniform3fv(loc, this.getScene().meshes[0].getBoneTranslations());
+});
+this.highlightRenderPass.addUniform("bRots",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniform4fv(loc, this.getScene().meshes[0].getBoneRotations());
+});
+  this.highlightRenderPass.addUniform("highlighted",
+  (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+    gl.uniform1f(loc, 1);
+  });
+  this.highlightRenderPass.setDrawData(this.ctx.LINES, this.scene.meshes[0].getBoneIndices().length, this.ctx.UNSIGNED_INT, 0);
+  this.highlightRenderPass.setup();
+ }
   
   /**
    * Sets up the floor drawing
@@ -331,6 +387,7 @@ export class SkinningAnimation extends CanvasAnimation {
       this.skeletonRenderPass.draw();
       // TODO
       // Also draw the highlighted bone (if applicable)
+      
       gl.enable(gl.DEPTH_TEST);      
     }
   }
