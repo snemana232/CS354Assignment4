@@ -1,13 +1,15 @@
 import { Camera } from "../lib/webglutils/Camera.js";
 import { CanvasAnimation } from "../lib/webglutils/CanvasAnimation.js";
 import { SkinningAnimation } from "./App.js";
-import { Mat3, Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
-import { Bone, Mesh } from "./Scene.js";
+import { Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
+import { Bone } from "./Scene.js";
 import { RenderPass } from "../lib/webglutils/RenderPass.js";
-import { MeshPhongMaterial, Scene } from "../lib/threejs/src/Three.js";
-import { sceneFSText } from "./Shaders.js";
 
+
+
+ 
 /**
+ * 
  * Might be useful for designing any animation GUI
  */
 interface IGUI {
@@ -47,9 +49,14 @@ export class GUI implements IGUI {
 
   private animation: SkinningAnimation;
 
+  public highlight: number;
+
+
   public time: number;
   
   public mode: Mode;
+  
+
   
 
   public hoverX: number = 0;
@@ -168,6 +175,7 @@ export class GUI implements IGUI {
   }
 
   /**
+  
    * The callback function for a drag event.
    * This event happens after dragStart and
    * before dragEnd.
@@ -219,60 +227,75 @@ export class GUI implements IGUI {
     // You will want logic here:
     // 1) To highlight a bone, if the mouse is hovering over a bone;
     // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
-
-    //highlighting the bone:
-
-    // unproject (x, y, 0) to get the world space coordinates
-    // Once you have this, subtract the eye position to get a world space ray.
-
-    const ndc_x : number = (2.0 * mouse.screenX) / this.width - 1.0;
-    const ndc_y: number = 1.0 - (2.0 * mouse.screenY) / this.height;
-    const ndc_z = -1.0;
-    const ndc_coords: Vec3 = new Vec3([ndc_x, ndc_y, ndc_z]);
-    const camera_coords: Vec3 = this.camera.projMatrix().inverse().multiplyVec3(ndc_coords);
-    const world_coords: Vec3 = this.camera.viewMatrix().inverse().multiplyVec3(camera_coords);
+    let camera_coords: Vec3 = new Vec3(this.screenToWorld(mouse.screenX, mouse.screenY).xyz);
+    //let world_ray: Vec3 =  new Vec3(this.camera.viewMatrix().inverse().multiplyVec4(camera_coords).xyz).normalize();
     //I have the ray in world space
-    const Wray: Vec3 = world_coords.subtract(this.camera.pos()).normalize();
-    
+    console.log("point in world space:[" + camera_coords.x + ", " + camera_coords.y + ", " + camera_coords.z + "]");
+
+    let p: Vec3 = this.camera.pos();
+    console.log("camera position: [" + this.camera.pos().x + ", " + this.camera.pos().y + ", " + this.camera.pos().z + "]");
+
+    const j_vec: Vec3 = new Vec3([0, 1, 0]);
     // Transform the ray into the cylinder's coordinates. Use the bone's orientation to do this.
-    for (let entry of this.animation.getScene().meshes.values()) {
-        for (let bone of entry.bones) {
-          const y_max: number = bone.endpoint.subtract(bone.position).length();
+    let ind: Bone[] = this.animation.getScene().meshes[0].bones;
+          //Instead of projecting the bone onto the y axis the magnitude of the bone vector is used to generate the maximum
+          //y value for the transformed bone.
+    console.log("number of bones " + ind.length);
 
-          
+    for (let i = 0; i < ind.length; i++) {
 
-          //in  this case both ||u|| and ||v|| are 1
+      let bone = ind[i];
 
-          //alternate calculation: http://forums.cgsociety.org/t/rotation-matrix-from-2-vectors/1295254/2
+      const z_max: number = bone.endpoint.subtract(bone.position).length();
 
-          let cos_theta: number = Vec3.dot(Wray, new Vec3([0, 0, 1]));
-          let sin_theta: number = Vec3.cross(Wray,new Vec3([0, 0, 1])).length();
+      p = p.subtract(bone.position);
+      let q: Vec3 = camera_coords.subtract(bone.position);
+      const tang: Vec3 = (bone.endpoint.subtract(bone.position));
+      let cross_product: Vec3 = Vec3.cross(j_vec, tang);
+      let rot: Quat = new Quat([cross_product.x, cross_product.y, cross_product.z, Math.sqrt(Math.pow(j_vec.length(), 2) * Math.pow(tang.length(), 2)) + Vec3.dot(j_vec, tang)]);
+      rot.normalize();          
+            
+      let Rotation: Mat4 = rot.toMat4();
 
-          let v: Vec3 = Vec3.cross(Wray, new Vec3([0, 0, 1]));
-          let s: number = v.length() * sin_theta;
-          let c: number = cos_theta * cos_theta;
-          
-          let v_x: Mat3 = new Mat3([0, v.z, -v.y, -v.z, 0, v.x, v.y, -v.x, 0]);
-          
-
-          let result: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-          for (let i = 0; i < 9; i++) {
-            result[i] = v_x.all[i] + Mat3.identity.at(i) + Math.pow(v_x.all[i], 2) * (1/ (1 + c));
-          }
-
-         let Rot: Mat3 = new Mat3(result);
-
-         let TransformedRay: Vec3 = Rot.multiplyVec3(Wray);
-
-         //Now we need an intersection test for TransformedRay and the cylinder
-
-         //How do I transform the ray origin(the camera position)? Stick to quaternions perhaps.
+      let p_Cyl: Vec3 = Rotation.inverse().multiplyVec3(p);
+      let q_Cyl: Vec3 = Rotation.inverse().multiplyVec3(q);
 
 
-        }      
+      let d: Vec3 = q_Cyl.subtract(p_Cyl).normalize();
 
+
+      let a: number = Math.pow(d.x, 2) + Math.pow(d.y, 2);
+      let b: number = 2*p_Cyl.x*d.x + 2*p_Cyl.y*d.y;
+      let c: number = Math.pow(p.x, 2) + Math.pow(p.y, 2) - 1;
+      
+      //Solve for t;
+      //let t: number = -1*b + Math.sqrt()  
+      let t1: number = (-1 * b + Math.sqrt(Math.pow(b, 2) - 4*a*c))/2
+      let t2: number = (-1 * b - Math.sqrt(Math.pow(b, 2) - 4*a*c))/2
+      
+
+     let eval1: Vec3 = new Vec3([p_Cyl.x + d.x*t1, p_Cyl.y + d.y*t1, p_Cyl.z + d.z*t1 ]);
+     let eval2: Vec3 = new Vec3([p_Cyl.x + d.x*t2, p_Cyl.y + d.y*t2, p_Cyl.z + d.z*t2 ]);
+      
+     if ((eval1.z>= 0 && eval1.z <= z_max) || (eval2.z >= 0 && eval2.z <= z_max)) {
+        console.log("x: " + eval1.x + ",y: " + eval1.y, ",z: " + eval1.z);
+        console.log("x: " + eval2.x + ",y: " + eval2.y, ",z: " + eval2.z);
+        console.log("intersection");
+        this.highlight = i;
+     }
     }
-  
+  }
+
+  public screenToWorld(mouseX: number, mouseY: number): Vec4 {
+      let ndc_x : number = ((2.0 * mouseX) / this.width) - 1.0;
+      let ndc_y: number = 1.0 - ( 2.0 * mouseY) / this.viewPortHeight;
+      let ndc_z = -1.0;
+      console.log("ndc_x: " + ndc_x + ", ndc_y: " + ndc_y);
+
+      let ndc_coords: Vec4 = new Vec4([ndc_x, ndc_y, ndc_z, 1.0]);
+      let camera_coords: Vec4 = this.camera.projMatrix().inverse().multiplyVec4(ndc_coords);
+      camera_coords = new Vec4([camera_coords.x, camera_coords.y, -1.0, 1.0]);
+      return camera_coords;
   }
 
   public getModeString(): string {
