@@ -201,6 +201,7 @@ export class GUI implements IGUI {
       }
 
 
+
       switch (mouse.buttons) {
         case 1: {
           let rotAxis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
@@ -232,8 +233,9 @@ export class GUI implements IGUI {
     let p: Vec3 = this.camera.pos();
     let q: Vec3 = this.screenToWorld(mouse.offsetX, mouse.offsetY);
     
-
-    //console.log("World space Coordinates: " + q.x + ", " + q.y + ", " + q.z + "]");
+    console.log("Camera: [" + p.x + ", " + p.y + ", " + p.z + "]")
+    console.log("Bone 0: [" + this.animation.getScene().meshes[0].bones[0].endpoint.x + ", " + this.animation.getScene().meshes[0].bones[0].endpoint.y + ", " + this.animation.getScene().meshes[0].bones[0].endpoint.z + "]" )
+    console.log("World space Coordinates [: " + q.x + ", " + q.y + ", " + q.z + "]");
 
     const j_vec: Vec3 = new Vec3([0, 1, 0]);
     // Transform the ray into the cylinder's coordinates. Use the bone's orientation to do this.
@@ -259,7 +261,7 @@ export class GUI implements IGUI {
       // }
 
 
-      let rot: Quat = Quat.fromAxisAngle(Vec3.cross(j_vec, tang), Math.acos(Vec3.dot(j_vec, tang)));
+      let rot: Quat = Quat.fromAxisAngle(Vec3.cross(tang, j_vec), Math.acos(Vec3.dot(tang, j_vec)));
 
 
       //console.log("skew_symmetric: " + skew_symmetric.all().toString());
@@ -269,8 +271,8 @@ export class GUI implements IGUI {
       //console.log("Rotation: ")
       //console.log(", " + Rotation.all()[0] + ", " + Rotation.all()[1] + ", " + Rotation.all()[2] + ", " + Rotation.all()[3] + ", " + Rotation.all()[4] + ", " + Rotation.all()[5]    );
 
-      let p_Cyl: Vec3 = rot.inverse().multiplyVec3(p_Trans);
-      let q_Cyl: Vec3 = rot.inverse().multiplyVec3(q_Trans);
+      let p_Cyl: Vec3 = rot.multiplyVec3(p_Trans);
+      let q_Cyl: Vec3 = rot.multiplyVec3(q_Trans);
 
 
       let d: Vec3 = Vec3.difference(q_Cyl, p_Cyl).normalize();
@@ -321,7 +323,7 @@ export class GUI implements IGUI {
     
       let ndc_x : number = ((2.0 * mouseX) / this.width) - 1.0;
       let ndc_y: number = 1.0 - ((2.0 * mouseY) / this.viewPortHeight);
-      let ndc_z = -1.0;
+      let ndc_z = 1.0;
       // console.log("x: " + mouseX + ",y: " + mouseY);
       // console.log("width: " + this.width  + ", height: " + this.viewPortHeight);
       console.log("ndc_x: " + ndc_x + ", ndc_y: " + ndc_y);
@@ -331,7 +333,9 @@ export class GUI implements IGUI {
       camera_coords = new Vec4([camera_coords.x, camera_coords.y, -1.0, 0.0]);
       let world_coords: Vec4 = this.camera.viewMatrix().inverse().multiplyVec4(camera_coords);
       //let result: Vec3  = new Vec3 ([world_coords.x/world_coords.w, world_coords.y/world_coords.w, world_coords.z/world_coords.w]);
-      return new Vec3(world_coords.xyz);
+  
+      //return Vec3.difference(this.camera.pos(), new Vec3(world_coords.xyz));
+      return new Vec3(world_coords.xyz).normalize();
   }
 
   public getModeString(): string {
