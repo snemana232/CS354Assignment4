@@ -212,6 +212,13 @@ export class GUI implements IGUI {
           } else {
             this.camera.orbitTarget(rotAxis, GUI.rotationSpeed);
           }
+
+           //left click
+
+          if (this.highlight != -1) {
+              let curr: Bone = this.animation.getScene().meshes[0].bones[this.highlight];
+              this.rotate(curr, rotAxis);
+          }
           break;
         }
         case 2: {
@@ -305,15 +312,47 @@ export class GUI implements IGUI {
         if ((eval1.y >= 0 && eval1.y < y_max) || (eval2.y >= 0 && eval2.y < y_max)) {
           console.log("intersection at bone: " + i);
           this.highlight = i;
-          found = true;
-          
+          found = true; 
         } else {
           this.highlight = -1;
         }
       }
-      
-      
     }
+
+
+
+  }
+
+  public rotate(parent: Bone, mouseDir: Vec3): void {
+    let Bones: Bone[] = this.animation.getScene().meshes[0].bones;
+    if (parent.children.length == 0) {
+      //Rotate only rotation and endpoint to match parents
+      let rotationQuat: Quat = Quat.fromAxisAngle(mouseDir, GUI.rotationSpeed);
+      let newRotation = new Quat();
+      parent.endpoint.multiplyByQuat(rotationQuat);
+      rotationQuat.multiply(parent.rotation, newRotation);
+      parent.rotation = newRotation;
+    }
+    for (let i = 0; i < parent.children.length; i++) {
+      let rotationQuat: Quat = Quat.fromAxisAngle(mouseDir, GUI.rotationSpeed);
+      let newRotation = new Quat();
+      parent.endpoint.multiplyByQuat(rotationQuat);
+      rotationQuat.multiply(parent.rotation, newRotation);
+      parent.rotation = newRotation;
+
+      //convert mouse dir into world space.
+      this.rotate(this.animation.getScene().meshes[0].bones[parent.children[i]], mouseDir);
+
+
+      //start: convert the drag direction into a vector in world coordinates.
+
+
+
+
+      //rotate
+    }
+
+
   }
 
   public screenToWorld(mouseX: number, mouseY: number): Vec3 {
