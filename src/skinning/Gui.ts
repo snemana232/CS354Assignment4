@@ -337,7 +337,7 @@ export class GUI implements IGUI {
       let rotationQuat: Quat = Quat.fromAxisAngle(mouseDir, GUI.rotationSpeed);
       let newRotation = new Quat();
       parent.endpoint.multiplyByQuat(rotationQuat);
-      rotationQuat.multiply(parent.rotation, newRotation);
+      rotationQuat.multiply(parent.rotation);
       parent.rotation = newRotation;
 
       //convert mouse dir into world space.
