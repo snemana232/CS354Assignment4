@@ -12,7 +12,6 @@ import {
   floorVSText,
   skeletonFSText,
   skeletonVSText,
-  highlightFSText,
   sBackVSText,
   sBackFSText
 } from "./Shaders.js";
@@ -22,7 +21,7 @@ import { RenderPass } from "../lib/webglutils/RenderPass.js";
 import { Camera } from "../lib/webglutils/Camera.js";
 
 export class SkinningAnimation extends CanvasAnimation {
-  private gui: GUI;
+  public gui: GUI;
   private millis: number;
 
   private loadedScene: string;
@@ -87,7 +86,7 @@ export class SkinningAnimation extends CanvasAnimation {
     // TODO
     // Other initialization, for instance, for the bone highlighting
 
-    this.highlightRenderPass = new RenderPass(this.extVAO, gl, skeletonVSText, highlightFSText);
+    //this.highlightRenderPass = new RenderPass(this.extVAO, gl, skeletonVSText, highlightFSText);
 
     //this.initCylinder();
     
@@ -128,7 +127,7 @@ export class SkinningAnimation extends CanvasAnimation {
     if (this.scene.meshes.length === 0) { return; }
     this.initModel();
     this.initSkeleton();
-    this.initCylinder();
+    //this.initCylinder();
     this.gui.reset();
   }
 
@@ -235,7 +234,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     this.skeletonRenderPass.addUniform("highlighted", 
     (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-      gl.uniform1f(loc, this.num);
+      gl.uniform1f(loc, this.gui.highlight);
     });
 
     this.skeletonRenderPass.setDrawData(this.ctx.LINES,
